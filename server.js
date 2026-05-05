@@ -123,6 +123,28 @@ app.get('/callback', async (req, res) => {
   }
 });
 
+app.get('/debug-env', (_req, res) => {
+  const vars = [
+    'ANTHROPIC_API_KEY',
+    'QBO_CLIENT_ID',
+    'QBO_CLIENT_SECRET',
+    'QBO_REDIRECT_URI',
+    'QBO_REALM_ID',
+    'QBO_REFRESH_TOKEN',
+    'QBO_ENVIRONMENT',
+  ];
+  const result = {};
+  vars.forEach(v => { result[v] = !!process.env[v]; });
+  // Also check .qbo-token file separately
+  try {
+    const t = fs.readFileSync(TOKEN_PATH, 'utf8').trim();
+    result['.qbo-token file'] = !!t;
+  } catch {
+    result['.qbo-token file'] = false;
+  }
+  res.json(result);
+});
+
 app.post('/save-token', (req, res) => {
   const token = req.body?.token?.trim();
   if (!token) return res.status(400).json({ error: 'token is required' });
@@ -454,6 +476,24 @@ app.post('/create-orders', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`Vittoria Order Processor → http://localhost:${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`Vittoria Order Processor → http://localhost:${PORT}`);
+
+  const mask = (v) => v ? `${v.substring(0, 4)}${'*'.repeat(Math.max(0, v.length - 4))}` : '(not set)';
+  const flag = (v) => v ? '✓ set' : '✗ MISSING';
+
+  console.log('[env] ANTHROPIC_API_KEY  ', flag(process.env.ANTHROPIC_API_KEY));
+  console.log('[env] QBO_CLIENT_ID      ', flag(process.env.QBO_CLIENT_ID),   mask(process.env.QBO_CLIENT_ID));
+  console.log('[env] QBO_CLIENT_SECRET  ', flag(process.env.QBO_CLIENT_SECRET));
+  console.log('[env] QBO_REDIRECT_URI   ', flag(process.env.QBO_REDIRECT_URI),  process.env.QBO_REDIRECT_URI || '');
+  console.log('[env] QBO_REALM_ID       ', flag(process.env.QBO_REALM_ID),    mask(process.env.QBO_REALM_ID));
+  console.log('[env] QBO_REFRESH_TOKEN  ', flag(process.env.QBO_REFRESH_TOKEN));
+  console.log('[env] QBO_ENVIRONMENT    ', flag(process.env.QBO_ENVIRONMENT),   process.env.QBO_ENVIRONMENT || '(not set — defaults to production)');
+
+  try {
+    const t = fs.readFileSync(TOKEN_PATH, 'utf8').trim();
+    console.log('[env] .qbo-token file    ✓ present', mask(t));
+  } catch {
+    console.log('[env] .qbo-token file    (not found — will use QBO_REFRESH_TOKEN from env)');
+  }
+});
