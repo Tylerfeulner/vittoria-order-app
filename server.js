@@ -1,4 +1,4 @@
-require('dotenv').config();
+if (process.env.NODE_ENV !== 'production') require('dotenv').config();
 const fs      = require('fs');
 const path    = require('path');
 const express = require('express');
@@ -124,23 +124,22 @@ app.get('/callback', async (req, res) => {
 });
 
 app.get('/debug-env', (_req, res) => {
-  const vars = [
-    'ANTHROPIC_API_KEY',
-    'QBO_CLIENT_ID',
-    'QBO_CLIENT_SECRET',
-    'QBO_REDIRECT_URI',
-    'QBO_REALM_ID',
-    'QBO_REFRESH_TOKEN',
-    'QBO_ENVIRONMENT',
-  ];
-  const result = {};
-  vars.forEach(v => { result[v] = !!process.env[v]; });
-  // Also check .qbo-token file separately
+  const preview = (v) => v ? `${v.substring(0, 4)}…` : '(not set)';
+  const result = {
+    ANTHROPIC_API_KEY:  preview(process.env.ANTHROPIC_API_KEY),
+    QBO_CLIENT_ID:      preview(process.env.QBO_CLIENT_ID),
+    QBO_CLIENT_SECRET:  preview(process.env.QBO_CLIENT_SECRET),
+    QBO_REDIRECT_URI:   process.env.QBO_REDIRECT_URI  || '(not set)',
+    QBO_REALM_ID:       preview(process.env.QBO_REALM_ID),
+    QBO_REFRESH_TOKEN:  preview(process.env.QBO_REFRESH_TOKEN),
+    QBO_ENVIRONMENT:    process.env.QBO_ENVIRONMENT   || '(not set)',
+    NODE_ENV:           process.env.NODE_ENV          || '(not set)',
+  };
   try {
     const t = fs.readFileSync(TOKEN_PATH, 'utf8').trim();
-    result['.qbo-token file'] = !!t;
+    result['.qbo-token'] = t ? `${t.substring(0, 4)}…` : '(empty)';
   } catch {
-    result['.qbo-token file'] = false;
+    result['.qbo-token'] = '(file not found)';
   }
   res.json(result);
 });
