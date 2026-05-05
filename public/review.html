@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review Order – Vittoria Order Processor</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 640px) {
+      .meta-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Line item table ── */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead th {
+      background: var(--bg);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 8px 6px;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: middle;
+    }
+    td input[type="text"],
+    td input[type="number"] {
+      padding: 6px 9px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      width: 100%;
+      font-size: 0.9rem;
+      background: transparent;
+      transition: border-color .15s, background .15s;
+    }
+    td input:hover  { border-color: var(--border); background: #fafafa; }
+    td input:focus  { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 2px rgba(26,86,219,.1); }
+
+    .col-name  { min-width: 200px; }
+    .col-sku   { min-width: 110px; }
+    .col-qty   { width: 80px; }
+    .col-cost  { width: 110px; }
+    .col-del   { width: 44px; text-align: center; }
+
+    .del-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 1rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .del-btn:hover { background: #fee2e2; color: var(--error); }
+
+    .add-row-btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 9px;
+      background: none;
+      border: 1.5px dashed var(--border);
+      border-radius: 6px;
+      color: var(--primary);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .add-row-btn:hover { border-color: var(--primary); background: #eff6ff; }
+
+    /* ── Totals bar ── */
+    .totals-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 28px;
+      padding: 14px 12px;
+      background: var(--bg);
+      border-radius: 6px;
+      margin-top: 12px;
+      font-size: 0.9rem;
+    }
+    .totals-bar .total-item { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+    .totals-bar .total-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .totals-bar .total-value { font-weight: 700; font-size: 1rem; }
+    .totals-bar .total-value.cost   { color: var(--error); }
+    .totals-bar .total-value.sell   { color: var(--success); }
+
+    /* ── Action row ── */
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    #submitBtn .spinner { display: none; }
+    #submitBtn.loading .spinner  { display: block; }
+    #submitBtn.loading .btn-text { display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Vittoria Order Processor</h1>
+    <span class="breadcrumb">/ Review Order</span>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h2>Review &amp; Edit Line Items</h2>
+      <p class="subtitle">Verify the extracted data then submit to create the Bill in QuickBooks.</p>
+
+      <!-- PO metadata -->
+      <div class="meta-grid">
+        <div class="form-group">
+          <label for="poNumber">PO Number</label>
+          <input type="text" id="poNumber" placeholder="e.g. PO-20240115">
+        </div>
+        <div class="form-group">
+          <label for="orderDate">Order Date</label>
+          <input type="text" id="orderDate" placeholder="YYYY-MM-DD">
+        </div>
+      </div>
+
+      <!-- Line items table -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-name">Product Name</th>
+              <th class="col-sku">SKU</th>
+              <th class="col-qty">Qty</th>
+              <th class="col-cost">Unit Cost</th>
+              <th class="col-del"></th>
+            </tr>
+          </thead>
+          <tbody id="lineItems"></tbody>
+        </table>
+      </div>
+
+      <button class="add-row-btn" onclick="addRow()">+ Add Line Item</button>
+
+      <div class="totals-bar" id="totalsBar">
+        <div class="total-item">
+          <span class="total-label">Bill Total (cost)</span>
+          <span class="total-value cost" id="costTotal">$0.00</span>
+        </div>
+      </div>
+
+      <div id="errorMsg"></div>
+
+      <div class="actions">
+        <a href="/" class="btn btn-secondary">← Back</a>
+        <button class="btn btn-primary btn-lg" id="submitBtn" onclick="submitOrder()">
+          <div class="spinner"></div>
+          <span class="btn-text">Create Bill in QuickBooks →</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function escHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function init() {
+      const raw = sessionStorage.getItem('poData');
+      if (!raw) { window.location.href = '/'; return; }
+
+      const data = JSON.parse(raw);
+      document.getElementById('poNumber').value  = data.po_number  || '';
+      document.getElementById('orderDate').value = data.order_date || '';
+
+      const items = data.line_items || [];
+      items.forEach(item => addRow(item));
+      if (!items.length) addRow();
+      recalcAll();
+    }
+
+    function addRow(item = {}) {
+      const tbody = document.getElementById('lineItems');
+      const tr    = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="col-name"><input type="text"   class="f-name" value="${escHtml(item.product_name)}" placeholder="Product name" oninput="recalcAll()"></td>
+        <td class="col-sku" ><input type="text"   class="f-sku"  value="${escHtml(item.sku)}"          placeholder="SKU"></td>
+        <td class="col-qty" ><input type="number" class="f-qty"  value="${item.quantity  ?? 1}"  min="0" step="1"    oninput="recalcAll()"></td>
+        <td class="col-cost"><input type="number" class="f-cost" value="${item.unit_price ?? ''}" min="0" step="0.01" placeholder="0.00" oninput="recalcAll()"></td>
+        <td class="col-del"><button class="del-btn" onclick="this.closest('tr').remove(); recalcAll()" title="Remove row">✕</button></td>
+      `;
+      tbody.appendChild(tr);
+      recalcAll();
+    }
+
+    function recalcAll() {
+      let total = 0;
+      document.querySelectorAll('#lineItems tr').forEach(tr => {
+        total += (parseFloat(tr.querySelector('.f-cost').value) || 0)
+               * (parseFloat(tr.querySelector('.f-qty').value)  || 0);
+      });
+      document.getElementById('costTotal').textContent = `$${total.toFixed(2)}`;
+    }
+
+    function getLineItems() {
+      return Array.from(document.querySelectorAll('#lineItems tr')).map(tr => ({
+        product_name: tr.querySelector('.f-name').value.trim(),
+        sku:          tr.querySelector('.f-sku').value.trim(),
+        quantity:     parseFloat(tr.querySelector('.f-qty').value)  || 0,
+        unit_price:   parseFloat(tr.querySelector('.f-cost').value) || 0,
+      }));
+    }
+
+    function showError(msg) {
+      document.getElementById('errorMsg').innerHTML = `<div class="error-msg">⚠ ${msg}</div>`;
+      document.getElementById('errorMsg').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    async function submitOrder() {
+      const lineItems = getLineItems();
+      if (!lineItems.length) { showError('Please add at least one line item.'); return; }
+      if (lineItems.find(l => !l.product_name)) { showError('Each line item must have a product name.'); return; }
+
+      document.getElementById('errorMsg').innerHTML = '';
+      const btn = document.getElementById('submitBtn');
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/create-orders', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            po_number:  document.getElementById('poNumber').value.trim(),
+            order_date: document.getElementById('orderDate').value.trim(),
+            line_items: lineItems,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create bill');
+
+        sessionStorage.setItem('confirmData', JSON.stringify(data));
+        window.location.href = '/confirmation.html';
+      } catch (err) {
+        showError(err.message);
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

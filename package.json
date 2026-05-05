@@ -1,0 +1,21 @@
+{
+  "name": "vittoria-order-processor",
+  "version": "1.0.0",
+  "description": "Process Vittoria purchase orders and create QuickBooks Bills and Invoices",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0",
+    "dotenv": "^16.4.0",
+    "express": "^4.19.0",
+    "intuit-oauth": "^4.2.0",
+    "multer": "^2.1.1",
+    "node-quickbooks": "^2.0.34"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

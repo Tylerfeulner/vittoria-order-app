@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bill Created – Vittoria Order Processor</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .check-icon    { font-size: 72px; text-align: center; margin: 8px 0 16px; line-height: 1; }
+    .success-title { text-align: center; font-size: 1.5rem; font-weight: 700; color: var(--success); margin-bottom: 6px; }
+    .sub-info      { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 36px; }
+    .sub-info strong { color: var(--text); }
+
+    .bill-card {
+      border: 1px solid var(--border);
+      border-top: 4px solid #ef4444;
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      text-align: center;
+      max-width: 380px;
+      margin: 0 auto 32px;
+    }
+    .bill-card .rec-label  { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 10px; }
+    .bill-card .rec-amount { font-size: 2.2rem; font-weight: 800; color: #ef4444; margin-bottom: 6px; }
+    .bill-card .rec-id     { font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; }
+    .bill-card .btn        { width: 100%; justify-content: center; }
+
+    .divider       { border: none; border-top: 1px solid var(--border); margin: 8px 0 28px; }
+    .new-order-wrap { text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Vittoria Order Processor</h1>
+    <span class="breadcrumb">/ Bill Created</span>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div class="check-icon">✅</div>
+      <div class="success-title">Bill Created Successfully</div>
+      <div class="sub-info" id="subInfo">Loading…</div>
+
+      <div class="bill-card">
+        <div class="rec-label">Bill — Owed to Vittoria</div>
+        <div class="rec-amount" id="billTotal"></div>
+        <div class="rec-id"    id="billId"></div>
+        <a id="billLink" href="#" target="_blank" rel="noopener" class="btn btn-primary">
+          Open Bill in QuickBooks →
+        </a>
+      </div>
+
+      <hr class="divider">
+
+      <div class="new-order-wrap">
+        <a href="/" class="btn btn-secondary" onclick="sessionStorage.clear()">
+          ← Process Another Order
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const raw = sessionStorage.getItem('confirmData');
+    if (!raw) {
+      window.location.href = '/';
+    } else {
+      const d = JSON.parse(raw);
+
+      document.getElementById('subInfo').innerHTML =
+        `PO <strong>${d.po_number || 'N/A'}</strong>`;
+
+      document.getElementById('billTotal').textContent = `$${parseFloat(d.bill.total).toFixed(2)}`;
+      document.getElementById('billId').textContent    = `Bill #${d.bill.id}`;
+      document.getElementById('billLink').href         = d.bill.url;
+    }
+  </script>
+</body>
+</html>

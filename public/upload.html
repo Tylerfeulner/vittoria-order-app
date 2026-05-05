@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vittoria Order Processor</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 64px 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      margin: 28px 0 20px;
+    }
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+    .drop-zone input[type="file"] { display: none; }
+    .drop-zone .icon { font-size: 52px; margin-bottom: 14px; line-height: 1; }
+    .drop-zone h3 { font-size: 1.05rem; margin-bottom: 8px; }
+    .drop-zone p { color: var(--muted); font-size: 0.875rem; }
+    .drop-zone .browse { color: var(--primary); font-weight: 600; }
+
+    .file-badge {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 22px;
+      font-size: 0.9rem;
+    }
+    .file-badge.show { display: flex; }
+    .file-badge .file-name { font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-badge .file-size { color: var(--muted); flex-shrink: 0; }
+    .file-badge .remove-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 1rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .file-badge .remove-btn:hover { background: #fee2e2; color: var(--error); }
+
+    .processing-bar {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      color: var(--primary);
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin: 0 0 18px;
+    }
+    .processing-bar.show { display: flex; }
+    .processing-bar .spinner { border-color: rgba(26,86,219,.2); border-top-color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Vittoria Order Processor</h1>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h2>Upload Purchase Order</h2>
+      <p class="subtitle">Drag and drop a Vittoria PDF purchase order — Claude AI will extract the line items automatically.</p>
+
+      <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Upload PDF file">
+        <input type="file" id="fileInput" accept=".pdf,application/pdf">
+        <div class="icon">📄</div>
+        <h3>Drop your PDF here</h3>
+        <p>or <span class="browse">click to browse</span> &nbsp;·&nbsp; PDF only, max 20 MB</p>
+      </div>
+
+      <div class="file-badge" id="fileBadge">
+        <span>📎</span>
+        <span class="file-name" id="fileName"></span>
+        <span class="file-size" id="fileSize"></span>
+        <button class="remove-btn" onclick="clearFile()" title="Remove file">✕</button>
+      </div>
+
+      <div class="processing-bar" id="processingBar">
+        <div class="spinner"></div>
+        <span>Extracting line items with AI — this may take a few seconds…</span>
+      </div>
+
+      <div id="errorMsg"></div>
+
+      <button class="btn btn-primary btn-lg" id="uploadBtn" onclick="processUpload()" disabled>
+        Extract Line Items →
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const dropZone  = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    let selectedFile = null;
+
+    // Click to browse
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+
+    // Drag events
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    ['dragleave', 'dragend'].forEach(ev => dropZone.addEventListener(ev, () => dropZone.classList.remove('drag-over')));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        showError('Please upload a PDF file.');
+        return;
+      }
+      setFile(file);
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) setFile(fileInput.files[0]);
+    });
+
+    function setFile(file) {
+      selectedFile = file;
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileSize').textContent = formatBytes(file.size);
+      document.getElementById('fileBadge').classList.add('show');
+      document.getElementById('uploadBtn').disabled = false;
+      clearError();
+    }
+
+    function clearFile() {
+      selectedFile = null;
+      fileInput.value = '';
+      document.getElementById('fileBadge').classList.remove('show');
+      document.getElementById('uploadBtn').disabled = true;
+      clearError();
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function showError(msg) {
+      document.getElementById('errorMsg').innerHTML = `<div class="error-msg">⚠ ${msg}</div>`;
+    }
+    function clearError() {
+      document.getElementById('errorMsg').innerHTML = '';
+    }
+
+    async function processUpload() {
+      if (!selectedFile) return;
+      clearError();
+
+      const btn = document.getElementById('uploadBtn');
+      btn.disabled = true;
+      btn.textContent = 'Extracting…';
+      document.getElementById('processingBar').classList.add('show');
+
+      const formData = new FormData();
+      formData.append('po_file', selectedFile);
+
+      try {
+        const res  = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+        sessionStorage.setItem('poData', JSON.stringify(data));
+        window.location.href = '/review.html';
+      } catch (err) {
+        showError(err.message);
+        btn.disabled = false;
+        btn.textContent = 'Extract Line Items →';
+        document.getElementById('processingBar').classList.remove('show');
+      }
+    }
+  </script>
+</body>
+</html>
